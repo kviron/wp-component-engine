@@ -1,7 +1,7 @@
 <?php
 
 
-namespace CE;
+namespace Kviron;
 
 use WP_Query;
 
@@ -519,4 +519,4 @@ class WP_CE
     }
 }
 
-CE::init();
+WP_CE::init();
