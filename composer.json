@@ -1,0 +1,19 @@
+{
+  "name": "kviron/wp-component-engine",
+  "description": "PHP Package for Wordpress",
+  "type": "library",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Kviron",
+      "email": "kviron.web.dev@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.1"
+  },
+  "autoload": {
+    "files": [ "resources/WP_CE.php" ]
+}
+}
