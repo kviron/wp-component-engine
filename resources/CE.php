@@ -1,59 +1,25 @@
 <?php
-
-
 namespace Kviron;
 
 use WP_Query;
 
-class WP_CE
+class CE
 {
     /**
-     * @var array
+     * @var array $options
      */
-    public static array $options;
-
-    public static string $ajaxUrl;
-
-    public static array $args;
-
-    /**
-     * @var array
-     */
-    public static array $debug = [
-        'notice'   => null,
-        'warnings' => null,
-        'errors'   => null,
-        'log'      => [],
+    public static $options = [
+        'theme' => [
+            'name' => null,
+            'path' => null,
+            'uri'  => null,
+        ],
+        'template_parts' => '/template-parts',
+        'item'           => '/items/item-',
+        'components'     => '/components',
+        'ajax_uri'       => null,
+        'debug'          => false,
     ];
-
-    /**
-     * --------------------------------------------------------------------------
-     * Метод добавления ошибок
-     * --------------------------------------------------------------------------
-     */
-    protected static function addError($error)
-    {
-        self::$debug['errors'] .= sprintf('<div class="dwr-error">%s</div>', $error);
-    }
-
-    protected static function addLog($log)
-    {
-        self::$debug['log'] = array_merge(self::$debug['log'], $log);
-    }
-
-    /**
-     * --------------------------------------------------------------------------
-     * Метод отображающий ошибку
-     * --------------------------------------------------------------------------
-     */
-    protected static function vieErrors()
-    {
-        if (self::$options['debug']) {
-            !self::$debug['notice'] ?: printf('<pre><b>Notice:</b> %s</pre>', self::$debug['notice']);
-            !self::$debug['errors'] ?: printf('<pre><b>Errors:</b> %s</pre>', self::$debug['errors']);
-            !self::$debug['warnings'] ?: printf('<pre><b>Warnings:</b> %s</pre>', self::$debug['warnings']);
-        }
-    }
 
     /**
      * --------------------------------------------------------------------------
@@ -62,47 +28,51 @@ class WP_CE
      */
     public static function init($args = [])
     {
-        self::$options['themeUri']        = $args['themeUri'] ?? get_template_directory_uri();
-        self::$options['themePath']       = $args['themePath'] ?? get_template_directory();
-        self::$options['templateParts']   = $args['templateParts'] ?? '/template-parts';
-        self::$options['itemPath']        = $args['itemPath'] ?? '/items/item-';
-        self::$options['themeAssetsPath'] = $args['themeAssetsPath'] ?? '/assets';
-        self::$options['themeAssetsUri']  = $args['themeAssetsUri'] ?? '/assets';
-        self::$options['componentsDir']   = $args['componentsDir'] ?? '/components';
-        self::$options['ajaxUrl']         = admin_url('admin-ajax.php');
-        self::$options['debug']           = $args['debug'] ?? false;
+        //Установить ссылку до папки темы
+        if (function_exists('get_template_directory_uri')){
+            self::$options['theme']['uri']  = get_template_directory_uri();
+        }
+
+        //Установить путь до папки темы
+        if (function_exists('get_template_directory')){
+            self::$options['theme']['path']  = get_template_directory();
+        }
+
+        //Установить путь до ajax url
+        if (function_exists('admin_url')){
+            self::$options['ajax_uri'] = admin_url('admin-ajax.php');
+        }
+
+        self::$options = self::_arrayMerge(self::$options, $args);
     }
+
 
     /**
      * --------------------------------------------------------------------------
      * Основной метод подключения шаблона
      * --------------------------------------------------------------------------
      */
-    public static function template($file, $args = []): void
+    public static function template($file, $args = [], $ext = '.php'): void
     {
-        global $wp_query;
+        try {
+            global $wp_query;
 
-        if ($args) {
-            extract($args, EXTR_OVERWRITE);
+            if ($wp_query->query_vars) {
+                extract($wp_query->query_vars, EXTR_SKIP);
+            }
+
+            if ($args) {
+                extract($args, EXTR_OVERWRITE);
+            }
+
+            $filePath = preg_replace('|([/]+)|s', '/', self::$options['theme']['path'] . '/' . $file . $ext);
+
+            if (file_exists($filePath)) {
+                require $filePath;
+            }
+        } catch (\Error $error){
+            print_r($error);
         }
-
-        if ($wp_query->query_vars) {
-            extract($wp_query->query_vars, EXTR_SKIP);
-        }
-
-        $filePath = preg_replace('|([/]+)|s', '/', self::$options['themePath'] . '/' . $file . '.php');
-
-        if (file_exists($filePath)) {
-            require $filePath;
-        } else {
-            self::addError(sprintf('File - %1s, <b>not found</b>', $filePath));
-        }
-
-        foreach ($args as $key => $value) {
-            unset(${$key});
-        }
-
-        self::vieErrors();
     }
 
     /**
@@ -141,8 +111,6 @@ class WP_CE
         ob_start();
         self::template($file, $args);
         echo ob_get_clean();
-
-        self::vieErrors();
     }
 
     /**
@@ -165,10 +133,8 @@ class WP_CE
     public static function theComponent($component, $args = [])
     {
         ob_start();
-        self::template(self::$options['componentsDir'] . '/' . $component, $args);
+        self::template(self::$options['components'] . '/' . $component, $args);
         echo ob_get_clean();
-
-        self::vieErrors();
     }
 
     /**
@@ -179,7 +145,7 @@ class WP_CE
     public static function getComponent($component, $args = [])
     {
         ob_start();
-        self::template(self::$options['componentsDir'] . '/' . $component, $args);
+        self::template(self::$options['components'] . '/' . $component, $args);
         return ob_get_clean();
     }
 
@@ -191,17 +157,15 @@ class WP_CE
     public static function thePosts($args = []): void
     {
         global $wp_query;
-        $post_type = $args['post_type'] ?? get_post_type();
 
-        if (isset($args['post_type'])) {
-            $state = $args['post_type'] == get_post_type() ? 'private' : 'global';
-        } else {
-            $state = 'private';
+        if (function_exists('get_post_type')){
+            $post_type = get_post_type();
+        }else {
+            $post_type = null;
         }
 
         $argsDefault = [
             'post_type'      => $post_type,
-            'state'          => $state,
             'posts_per_page' => (int)$wp_query->get('posts_per_page') ?? 10,
             'paged'          => (int)$wp_query->get('paged') ?? 1,
             'pagination'     => [
@@ -227,7 +191,7 @@ class WP_CE
                 'number'    => 1,
                 'className' => null,
                 'post'      => null,
-                'template'  => self::$options['templateParts'] . self::$options['itemPath'] . $post_type,
+                'template'  => self::$options['template_parts'] . self::$options['item'] . $post_type,
                 'thumbnail' => [
                     'url'  => null,
                     'size' => null,
@@ -245,39 +209,28 @@ class WP_CE
 
         $queryParams = self::_arrayMerge($argsDefault, $args);
 
-        if ($queryParams['state'] === 'private' && $wp_query->have_posts()) {
-            ob_start();
-
+        try {
             echo $queryParams['container']['start'] ?? null;
-            self::loop($wp_query, $queryParams['item']['template'], $queryParams['item']);
-            echo $queryParams['container']['end'] ?? null;
 
-            echo ob_get_clean();
-        } else if ($queryParams['state'] === 'global') {
-            ob_start();
-
-            echo $queryParams['container']['start'] ?? null;
             $query = new WP_Query($queryParams);
+
             if ($query->have_posts()) {
                 self::loop($query, $queryParams['item']['template'], $queryParams['item']);
             }
+
             echo $queryParams['container']['end'] ?? null;
 
-            echo ob_get_clean();
-        }
+            $wp_query->reset_postdata();
 
-        $wp_query->reset_postdata();
+            //Создание пагинации
+            if ($queryParams['pagination']['enable']){
+                echo $queryParams['pagination']['wrapper']['start'] ?? null;
+                echo self::createPagination($query, $queryParams['pagination']);
+                echo $queryParams['pagination']['wrapper']['end'] ?? null;
+            }
 
-        if ($queryParams['state'] === 'private' && $queryParams['pagination']['enable']) {
-            $pagination = self::createPagination($wp_query, $queryParams['pagination']);
-        } elseif ($queryParams['state'] === 'global' && $queryParams['pagination']['enable']) {
-            $pagination = self::createPagination($query, $queryParams['pagination']);
-        }
-
-        if (isset($pagination)) {
-            echo $queryParams['pagination']['wrapper']['start'] ?? null;
-            echo $pagination;
-            echo $queryParams['pagination']['wrapper']['end'] ?? null;
+        } catch (\Error $error) {
+            print_r($error);
         }
     }
 
@@ -338,7 +291,6 @@ class WP_CE
             $number++;
         }
         $query->reset_postdata();
-        self::vieErrors();
     }
 
     /**

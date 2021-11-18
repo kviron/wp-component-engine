@@ -14,6 +14,6 @@
     "php": ">=7.1"
   },
   "autoload": {
-    "files": [ "resources/WP_CE.php" ]
+    "files": [ "resources/CE.php" ]
 }
 }
