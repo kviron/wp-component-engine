@@ -1,9 +1,8 @@
 <?php
 
-namespace Kviron;
+namespace Kviron\CE;
 
-use Exception;
-use WP_Query;
+use \WP_Query;
 
 class CE
 {
@@ -72,7 +71,7 @@ class CE
                 require $filePath;
             } else {
                 $file_path = self::$options['theme']['path'] . $file . $ext;
-                throw new Exception("<div style='font-size: 12px; background-color: #e9e9e9; padding: 5px;'>File - <b>$file_path</b> not found </div><br>");
+                throw new \Exception("<div style='font-size: 12px; background-color: #e9e9e9; padding: 5px;'>File - <b>$file_path</b> not found </div><br>");
             }
         } catch (\Exception $error) {
             if (self::$options['debug']) {
@@ -236,7 +235,7 @@ class CE
                 echo self::createPagination($query, $queryParams['pagination']);
                 echo $queryParams['pagination']['wrapper']['end'] ?? null;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             echo $e->getMessage();
         }
     }
