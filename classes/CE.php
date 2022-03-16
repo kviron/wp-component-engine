@@ -1,9 +1,5 @@
 <?php
 
-namespace Kviron\CE;
-
-use \WP_Query;
-
 class CE
 {
     /**
@@ -21,7 +17,6 @@ class CE
     public static function init($args = []) {
         self::$options = require CE_DIR . '/configs/options.php';
 
-
         //Установить ссылку до папки темы
         if (function_exists('get_template_directory_uri')) {
             self::$options['theme']['uri'] = get_template_directory_uri();
@@ -37,8 +32,16 @@ class CE
             self::$options['ajax_uri'] = admin_url('admin-ajax.php');
         }
 
-
         self::$options = self::_arrayMerge(self::$options, $args);
+
+        if (self::$options['vue']) {
+            add_action('wp_enqueue_scripts', ['CE', 'load_vue'], 20);
+        }
+    }
+
+    public static function load_vue()
+    {
+        wp_enqueue_script('vendors-js', 'https://unpkg.com/vue@/' . self::$options['vue_version'], false, false, true);
     }
 
     /**
@@ -131,7 +134,7 @@ class CE
 
     /**
      * --------------------------------------------------------------------------
-     * Метот для вывода шаблона компонентов
+     * Метод для вывода шаблона компонентов
      * --------------------------------------------------------------------------
      */
     public static function theComponent($component, $args = [], $ext = '.php') {
@@ -140,9 +143,24 @@ class CE
         echo ob_get_clean();
     }
 
+    public static function vueComponent($path, $args = [], $ext = '.php'){
+
+        // Задаем имя компонента по умолчанию
+        if (!isset($args['component_name'])) {
+            $array_path = explode('/', $path);
+            $args['component_name'] = end($array_path);
+
+            ob_start();
+            echo "<div data-vue-component='{$args['component_name']}'>";
+            self::template($path, $args, $ext);
+            echo '<div>';
+            echo ob_get_clean();
+        }
+    }
+
     /**
      * --------------------------------------------------------------------------
-     * Метот для получения шаблона компонентов
+     * Метод для получения шаблона компонентов
      * --------------------------------------------------------------------------
      */
     public static function getComponent($component, $args = [], $ext = '.php') {
@@ -153,7 +171,7 @@ class CE
 
     /**
      * --------------------------------------------------------------------------
-     * Метот вывода списка постов с помощью WP_Query
+     * Метод вывода списка постов с помощью WP_Query
      * --------------------------------------------------------------------------
      */
     public static function thePosts($args = []): void {
@@ -240,9 +258,34 @@ class CE
         }
     }
 
+    public static function getPosts($args = []) {
+        global $wp_query;
+
+        if (function_exists('get_post_type')) {
+            $post_type = get_post_type();
+        } else {
+            $post_type = null;
+        }
+
+        $argsDefault = [
+            'post_type'      => $post_type,
+            'posts_per_page' => (int)$wp_query->get('posts_per_page') ?? 10,
+            'paged'          => (int)$wp_query->get('paged') ?? 1,
+
+        ];
+
+        $queryParams = self::_arrayMerge($argsDefault, $args);
+
+        try {
+            return new WP_Query($queryParams);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     /**
      * --------------------------------------------------------------------------
-     * Метот фильтрации строки
+     * Метод фильтрации строки
      * --------------------------------------------------------------------------
      */
     public static function filterString($string, $array) {
@@ -259,7 +302,7 @@ class CE
 
     /**
      * --------------------------------------------------------------------------
-     * Метот основного цикла вывода постов
+     * Метод основного цикла вывода постов
      * --------------------------------------------------------------------------
      */
     public static function loop($query, $template, $args = []) {

@@ -11,4 +11,6 @@ return [
     'content_none'   => '/content/content-none',
     'ajax_uri'       => null,
     'debug'          => false,
+    'vue'            => false,
+    'vue_version'    => '3.2.31'
 ];
