@@ -178,7 +178,7 @@ class CE
         global $wp_query;
 
         if (function_exists('get_post_type')) {
-            $post_type = get_post_type();
+            $post_type = $args['post_type'] ?? get_post_type();
         } else {
             $post_type = null;
         }
