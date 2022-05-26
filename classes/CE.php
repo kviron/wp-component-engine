@@ -7,7 +7,7 @@ class CE
      */
     public static $options;
 
-    public static $logs = [];
+	public static $buffer;
 
     /**
      * --------------------------------------------------------------------------
@@ -39,6 +39,34 @@ class CE
         }
     }
 
+	public static function getStyleFromArray($array)
+	{
+		$response = '';
+		if (!is_array($array)) {
+			return false;
+		}
+
+		foreach ( $array as $property => $value ) {
+			$response.= $property . ': ' . $value . '; ';
+		}
+
+		return $response;
+	}
+
+	/**
+	 * @throws Exception
+	 */
+	public static function errorComponent($message){
+		$array  = explode( '/', self::$buffer['file'] );
+		$file   = end( $array );
+		$styles = self::getStyleFromArray(self::$options['styles']['error']);
+		throw new \Exception("
+		<div style='$styles'>
+		Component: $file - <strong>Error</strong><br>
+		Message: $message</div><br>
+	");
+	}
+
     public static function load_vue()
     {
         wp_enqueue_script('vendors-js', 'https://unpkg.com/vue@/' . self::$options['vue_version'], false, false, true);
@@ -50,6 +78,7 @@ class CE
      * --------------------------------------------------------------------------
      */
     public static function template($file, $args = [], $ext = '.php'): void {
+	    self::$buffer['file'] = $file;
         try {
             global $wp_query;
 
@@ -78,10 +107,8 @@ class CE
             }
         } catch (\Exception $error) {
             if (self::$options['debug']) {
-                echo $error->getMessage();
+                print_r($error->getMessage());
             }
-
-            self::$logs[] = $error;
         }
     }
 
@@ -178,7 +205,7 @@ class CE
         global $wp_query;
 
         if (function_exists('get_post_type')) {
-            $post_type = get_post_type();
+            $post_type = $args['post_type'] ?? get_post_type();
         } else {
             $post_type = null;
         }
