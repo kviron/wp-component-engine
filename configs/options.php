@@ -5,9 +5,11 @@ return [
 		'path' => null,
 		'uri'  => null,
 	],
+	'aliases' => [
+		'components'     => '/template-parts/components',
+	],
 	'template_parts' => '/template-parts',
 	'item'           => '/items/item-',
-	'components'     => '/components',
 	'content_none'   => '/content/content-none',
 	'ajax_uri'       => null,
 	'debug'          => false,
