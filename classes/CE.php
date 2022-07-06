@@ -56,6 +56,24 @@ class CE {
 		return $response;
 	}
 
+	public static function pathReplace($path) {
+		return preg_replace( '|([/]+)|s', '/',  $path);
+	}
+
+	public static function exist($file, $ext = '.php'): bool {
+		$slash = substr( $file, 0, 1 );
+		if ( $slash !== '/' ) {
+			$slash = '/';
+		} else {
+			$slash = null;
+		}
+
+		return file_exists(self::pathReplace(self::$options['theme']['path'] . $slash .  $file . $ext));
+	}
+
+	/**
+	 * @throws ErrorException
+	 */
 	public static function __callStatic($name, $arguments) {
 		if ($nameComponent = strripos($name, 'the') === 0) {
 			$type = 'the';
@@ -68,18 +86,28 @@ class CE {
 		$nameFunc = mb_strtolower(mb_substr($name, 3));
 
 		if (!empty($arguments) && is_array($arguments)) {
-			[
-				0 => $filePath,
-				1 => $args,
-				2 => $ext
-			] = $arguments;
+
+			if (!empty($arguments[0])) {
+				$filePath = $arguments[0];
+			} else {
+				throw new ErrorException('Не передан параметр пути компонента', 404);
+			}
+
+			if (!empty($arguments[1])) {
+				$args = $arguments[1];
+			}
+
+			if (!empty($arguments[2])) {
+				$ext = $arguments[2];
+			}
+
 		} else {
 			return false;
 		}
 
 		if ($type === 'the') {
 			ob_start();
-			self::template(self::$options['aliases'][$nameFunc] . '/' . $filePath, $args, $ext ?? '.php');
+			self::template(self::$options['aliases'][$nameFunc] . '/' . $filePath, $args ?? null, $ext ?? '.php');
 			echo ob_get_clean();
 		}
 
@@ -163,6 +191,13 @@ class CE {
 		return $str;
 	}
 
+//	public static function jsonEncode($value)
+//	{
+//		if (is_array($value)) {
+//
+//		}
+//	}
+
 	/**
 	 * --------------------------------------------------------------------------
 	 * Метот рукурсивного мерджа массивов
@@ -216,11 +251,11 @@ class CE {
 	 * Метод для вывода шаблона компонентов
 	 * --------------------------------------------------------------------------
 	 */
-	public static function theComponent( $component, $args = [], $ext = '.php' ) {
-		ob_start();
-		self::template( self::$options['aliases']['components'] . '/' . $component, $args, $ext );
-		echo ob_get_clean();
-	}
+//	public static function theComponent( $component, $args = [], $ext = '.php' ) {
+//		ob_start();
+//		self::template( self::$options['aliases']['components'] . '/' . $component, $args, $ext );
+//		echo ob_get_clean();
+//	}
 
 	public static function vueComponent( $path, $args = [], $ext = '.php' ) {
 
@@ -257,18 +292,7 @@ class CE {
 	public static function thePosts( $args = [] ): void {
 		global $wp_query;
 
-		if ( get_class( $args['post_type'] ) == 'WP_Post_Type' ) {
-			$post_type = $args['post_type']->name;
-		} else {
-			$post_type = $args['post_type'] ?? get_post_type();
-		}
-
-		unset( $args['post_type'] );
-
 		$argsDefault = [
-			'post_type'      => $post_type,
-			'posts_per_page' => (int) $wp_query->get( 'posts_per_page' ) ?? 10,
-			'paged'          => (int) $wp_query->get( 'paged' ) ?? 1,
 			'pagination'     => [
 				'enable'          => false,
 				'text_num_page'   => '',
@@ -292,7 +316,7 @@ class CE {
 				'number'    => 1,
 				'className' => null,
 				'post'      => null,
-				'template'  => self::$options['template_parts'] . self::$options['item'] . $post_type,
+				'template'  => self::$options['template_parts'] . self::$options['item'] . $args['post_type'] ?? $wp_query->get( 'post_type' ),
 				'thumbnail' => true,
 				'wrapper'   => [
 					'start' => null,
@@ -340,23 +364,8 @@ class CE {
 	public static function getPosts( $args = [] ) {
 		global $wp_query;
 
-		if ( function_exists( 'get_post_type' ) ) {
-			$post_type = get_post_type();
-		} else {
-			$post_type = null;
-		}
-
-		$argsDefault = [
-			'post_type'      => $post_type,
-			'posts_per_page' => (int) $wp_query->get( 'posts_per_page' ) ?? 10,
-			'paged'          => (int) $wp_query->get( 'paged' ) ?? 1,
-
-		];
-
-		$queryParams = self::arrayMerge( $argsDefault, $args );
-
 		try {
-			return new WP_Query( $queryParams );
+			return new WP_Query( $args );
 		} catch ( \Exception $e ) {
 			return null;
 		}
